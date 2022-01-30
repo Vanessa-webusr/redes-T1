@@ -73,14 +73,15 @@ def handleMessage(conexao, messageType, messageData):
 
         remoteAddrs = conexao.s.getpeername()
 
-        if messageData in list(users.values()):
-            response = b':server 433 * %s :Nickname is already in use\r\n' % messageData
+        oldNick = users[remoteAddrs] if remoteAddrs in users else b'*'
+
+        if messageData.lower() in [x.lower() for x in list(users.values())]:
+            response = b':server 433 %s %s :Nickname is already in use\r\n' % (oldNick, messageData)
             conexao.enviar(response)
             return
 
         if remoteAddrs in users:
-            oldNick = users[remoteAddrs]
-            response = b':%s NICK %s' % (oldNick, messageData)
+            response = b':%s NICK %s\r\n' % (oldNick, messageData)
             conexao.enviar(response)
         else:
             response1 = b':server 001 %s :Welcome\r\n' % messageData
