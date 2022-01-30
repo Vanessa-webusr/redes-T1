@@ -31,25 +31,34 @@ missingData = {}
 def parseMessages(conexao, dados):
     global missingData
 
+    # 'linha\r\n'             -> ('linha', '')
+    # 'linha1\r\nlinha2\r\n   -> ('linha1', 'linha2', '')
+    # 'a 1\r\nlinha 2\r\nli'  -> ('a 1', 'linha 2', 'li')
+    # 'lin' ... 'h' ... 'a\r\n'
     messages = dados.split(b'\r\n')
 
     remoteAddrs = conexao.s.getpeername()
 
+    # inicializa o dicionario para a conexão atual
     if not remoteAddrs in missingData:
         missingData[remoteAddrs] = b''
 
+    # verifica se existe dados residuais da conexão atual
     if not missingData[remoteAddrs] == b'':
         messages[0] = missingData[remoteAddrs] + messages[0]
         missingData[remoteAddrs] = b''
 
+    # verifica se existe dados residuais na última mensagem
     if not messages[-1] == b'':
         missingData[remoteAddrs] = missingData[remoteAddrs] + messages[-1]
         messages[-1] = b''
 
+    # verifica se os dados residuais estão completos
     if missingData[remoteAddrs].endswith(b'\r\n'):
         messages.insert(0, missingData[remoteAddrs])
         missingData[remoteAddrs] = b''
 
+    # deleta do dicionario dados residuais vazios
     if missingData[remoteAddrs] == b'':
         del missingData[remoteAddrs]
 
@@ -73,13 +82,16 @@ def handleMessage(conexao, messageType, messageData):
 
         remoteAddrs = conexao.s.getpeername()
 
+        # define o apelido_atual
         oldNick = users[remoteAddrs] if remoteAddrs in users else b'*'
 
+        # verifica se o nick já está sendo usado
         if messageData.lower() in [x.lower() for x in list(users.values())]:
             response = b':server 433 %s %s :Nickname is already in use\r\n' % (oldNick, messageData)
             conexao.enviar(response)
             return
 
+        # verifica se o usuário já existe
         if remoteAddrs in users:
             response = b':%s NICK %s\r\n' % (oldNick, messageData)
             conexao.enviar(response)
