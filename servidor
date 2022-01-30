@@ -3,28 +3,93 @@ import asyncio
 from grader.tcp import Servidor
 import re
 
-
 def validar_nome(nome):
     return re.match(br'^[a-zA-Z][a-zA-Z0-9_-]*$', nome) is not None
 
-
 def sair(conexao):
-    print(conexao, 'conexão fechada')
+    print('> Connection closed')
     conexao.fechar()
 
+missingData = b''
 
 def dados_recebidos(conexao, dados):
+    global missingData
+
     if dados == b'':
         return sair(conexao)
-    conexao.enviar(b':server PONG server :' + dados.split(b' ', 1)[1])
-    print(conexao, dados)
+
+    print('! Data received: "%s"' % dados)
+
+    messages = dados.split(b'\r\n')
+
+    if not missingData == b'':
+        messages[0] = missingData + messages[0]
+        missingData = b''
+
+    if not messages[-1] == b'':
+        missingData = missingData + messages[-1]
+        messages[-1] = b''
+
+    if missingData.endswith(b'\r\n'):
+        messages.insert(0, missingData)
+        missingData = b''
+
+    for message in messages:
+        if not len(message): continue
+        messageType, messageData = message.split(b' ', 1)
+
+        print('> Processing message. Type: "%s" Data: "%s"' % (messageType, messageData))
+        handleMessage(conexao, messageType, messageData)
+
+users = {}
+
+def handleMessage(conexao, messageType, messageData):
+    global users
+
+    if messageType == b'PING':
+        response = b':server PONG server :%s\r\n' % messageData
+        conexao.enviar(response)
+        return
+
+    elif messageType == b'NICK':
+        if not validar_nome(messageData):
+            response = b':server 432 * %s :Erroneous nickname\r\n' % messageData
+            print(response)
+            conexao.enviar(response)
+            return
+
+        remoteAddrs = conexao.s.getpeername()
+
+        if messageData in list(users.values()):
+            response = b':server 433 * %s :Nickname is already in use\r\n' % messageData
+            conexao.enviar(response)
+            return
+
+        if remoteAddrs in users:
+            oldNick = users[remoteAddrs]
+            response = b':%s NICK %s' % (oldNick, messageData)
+            conexao.enviar(response)
+        else:
+            response1 = b':server 001 %s :Welcome\r\n' % messageData
+            conexao.enviar(response1)
+            response2 = b':server 422 %s :MOTD File is missing\r\n' % messageData
+            conexao.enviar(response2)
+
+        users[remoteAddrs] = messageData
+        return
+    else:
+        print('? Message type not implemented: "%s"' % messageType)
+
 
 
 def conexao_aceita(conexao):
-    print(conexao, 'nova conexão')
+    print('> New connection')
     conexao.registrar_recebedor(dados_recebidos)
 
 
 servidor = Servidor(6667)
 servidor.registrar_monitor_de_conexoes_aceitas(conexao_aceita)
+
+print('> Servidor started')
+
 asyncio.get_event_loop().run_forever()
