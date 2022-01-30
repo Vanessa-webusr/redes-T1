@@ -10,36 +10,50 @@ def sair(conexao):
     print('> Connection closed')
     conexao.fechar()
 
-missingData = b''
-
 def dados_recebidos(conexao, dados):
-    global missingData
-
     if dados == b'':
         return sair(conexao)
 
     print('! Data received: "%s"' % dados)
 
-    messages = dados.split(b'\r\n')
-
-    if not missingData == b'':
-        messages[0] = missingData + messages[0]
-        missingData = b''
-
-    if not messages[-1] == b'':
-        missingData = missingData + messages[-1]
-        messages[-1] = b''
-
-    if missingData.endswith(b'\r\n'):
-        messages.insert(0, missingData)
-        missingData = b''
+    messages = parseMessages(conexao, dados)
 
     for message in messages:
         if not len(message): continue
+
         messageType, messageData = message.split(b' ', 1)
 
         print('> Processing message. Type: "%s" Data: "%s"' % (messageType, messageData))
         handleMessage(conexao, messageType, messageData)
+
+missingData = {}
+
+def parseMessages(conexao, dados):
+    global missingData
+
+    messages = dados.split(b'\r\n')
+
+    remoteAddrs = conexao.s.getpeername()
+
+    if not remoteAddrs in missingData:
+        missingData[remoteAddrs] = b''
+
+    if not missingData[remoteAddrs] == b'':
+        messages[0] = missingData[remoteAddrs] + messages[0]
+        missingData[remoteAddrs] = b''
+
+    if not messages[-1] == b'':
+        missingData[remoteAddrs] = missingData[remoteAddrs] + messages[-1]
+        messages[-1] = b''
+
+    if missingData[remoteAddrs].endswith(b'\r\n'):
+        messages.insert(0, missingData[remoteAddrs])
+        missingData[remoteAddrs] = b''
+
+    if missingData[remoteAddrs] == b'':
+        del missingData[remoteAddrs]
+
+    return messages
 
 users = {}
 
@@ -54,7 +68,6 @@ def handleMessage(conexao, messageType, messageData):
     elif messageType == b'NICK':
         if not validar_nome(messageData):
             response = b':server 432 * %s :Erroneous nickname\r\n' % messageData
-            print(response)
             conexao.enviar(response)
             return
 
