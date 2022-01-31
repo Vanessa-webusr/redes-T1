@@ -40,27 +40,38 @@ def parseMessages(conexao, dados):
     remoteAddrs = conexao.s.getpeername()
 
     # inicializa o dicionario para a conexão atual
-    if not remoteAddrs in missingData:
-        missingData[remoteAddrs] = b''
+   # if not remoteAddrs in missingData:
+    #    missingData[remoteAddrs] = b''
+    if not conexao in missingData:
+      missingData[conexao] = b''
 
     # verifica se existe dados residuais da conexão atual
-    if not missingData[remoteAddrs] == b'':
-        messages[0] = missingData[remoteAddrs] + messages[0]
-        missingData[remoteAddrs] = b''
+    # if not missingData[remoteAddrs] == b'':
+    if not missingData[conexao] == b'':
+       # messages[0] = missingData[remoteAddrs] + messages[0]
+       messages[0] = missingData[conexao] + messages[0]
+       # missingData[remoteAddrs] = b''
+       missingData[conexao] = b''
 
     # verifica se existe dados residuais na última mensagem
     if not messages[-1] == b'':
-        missingData[remoteAddrs] = missingData[remoteAddrs] + messages[-1]
+      #  missingData[remoteAddrs] = missingData[remoteAddrs] + messages[-1]
+        missingData[conexao] = missingData[conexao] + messages[-1]
         messages[-1] = b''
 
     # verifica se os dados residuais estão completos
-    if missingData[remoteAddrs].endswith(b'\r\n'):
-        messages.insert(0, missingData[remoteAddrs])
-        missingData[remoteAddrs] = b''
+    # if missingData[remoteAddrs].endswith(b'\r\n'):
+    if missingData[conexao].endswith(b'\r\n'):
+      #  messages.insert(0, missingData[remoteAddrs])
+      #  missingData[remoteAddrs] = b''
+      messages.insert(0, missingData[conexao])
+      missingData[conexao] = b''
 
     # deleta do dicionario dados residuais vazios
-    if missingData[remoteAddrs] == b'':
-        del missingData[remoteAddrs]
+    # if missingData[remoteAddrs] == b'':
+    if missingData[conexao] == b'':
+        # del missingData[remoteAddrs]
+        del missingData[conexao]
 
     return messages
 
@@ -83,16 +94,19 @@ def handleMessage(conexao, messageType, messageData):
         remoteAddrs = conexao.s.getpeername()
 
         # define o apelido_atual
-        oldNick = users[remoteAddrs] if remoteAddrs in users else b'*'
+        # oldNick = users[remoteAddrs] if remoteAddrs in users else b'*'
+        oldNick = users[conexao] if conexao in users else b'*'
 
         # verifica se o nick já está sendo usado
         if messageData.lower() in [x.lower() for x in list(users.values())]:
+        # if re.search("{messageData}", "{list(users.values())}", re.IGNORECASE) != None:
             response = b':server 433 %s %s :Nickname is already in use\r\n' % (oldNick, messageData)
             conexao.enviar(response)
             return
 
         # verifica se o usuário já existe
-        if remoteAddrs in users:
+        # if remoteAddrs in users:
+        if conexao in users:
             response = b':%s NICK %s\r\n' % (oldNick, messageData)
             conexao.enviar(response)
         else:
@@ -101,8 +115,13 @@ def handleMessage(conexao, messageType, messageData):
             response2 = b':server 422 %s :MOTD File is missing\r\n' % messageData
             conexao.enviar(response2)
 
-        users[remoteAddrs] = messageData
+        # users[remoteAddrs] = messageData
+        users[conexao] = messageData
         return
+    
+    elif messageType == b'PRIVMSG':
+      return
+
     else:
         print('? Message type not implemented: "%s"' % messageType)
 
