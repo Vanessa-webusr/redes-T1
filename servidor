@@ -82,7 +82,7 @@ def handleMessage(conexao, messageType, messageData):
         oldNick = users[conexao] if conexao in users else b'*'
 
         # verifica se o nick já está sendo usado
-        if messageData.lower() in [x.lower() for x in list(users.values())]:
+        if usingNick(messageData):
         # if re.search("{messageData}", "{list(users.values())}", re.IGNORECASE) != None:
             response = b':server 433 %s %s :Nickname is already in use\r\n' % (oldNick, messageData)
             conexao.enviar(response)
@@ -104,12 +104,36 @@ def handleMessage(conexao, messageType, messageData):
         return
     
     elif messageType == b'PRIVMSG':
-      return
+        target, content = messageData.split(b' :', 1)
+
+        targetConnections = getConnectionsByChannel(target) if target.startswith(b'#') else getConnectionsByUser(target)
+
+        for targetConnection in targetConnections:
+            response = b':%s PRIVMSG %s :%s\r\n' % (users[conexao], target, content)
+            print(targetConnection)
+            targetConnection.enviar(response)
+
+        return
 
     else:
         print('? Message type not implemented: "%s"' % messageType)
 
+def usingNick(user):
+    return user.lower() in [x.lower() for x in list(users.values())]
 
+def getConnectionsByChannel(channel):
+    return []
+
+# it will return an array with 0 or 1 connection
+def getConnectionsByUser(user):
+    if not usingNick(user):
+        return []
+
+    userLowerCase = user.lower()
+    connections = list(users.keys())
+    usersListLowerCase = [x.lower() for x in list(users.values())]
+    userConnection = connections[usersListLowerCase.index(userLowerCase)]
+    return [userConnection]
 
 def conexao_aceita(conexao):
     print('> New connection')
