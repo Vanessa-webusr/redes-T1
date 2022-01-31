@@ -15,6 +15,8 @@ def sair(conexao):
     if conexao in users:
         del users[conexao]
 
+    # TODO: remove from channels
+
     conexao.fechar()
 
 def dados_recebidos(conexao, dados):
@@ -71,6 +73,8 @@ def parseMessages(conexao, dados):
 
 users = {}
 
+channels = {}
+
 def handleMessage(conexao, messageType, messageData):
     global users
 
@@ -113,12 +117,55 @@ def handleMessage(conexao, messageType, messageData):
     elif messageType == b'PRIVMSG':
         target, content = messageData.split(b' :', 1)
 
-        targetConnections = getConnectionsByChannel(target) if target.startswith(b'#') else getConnectionsByUser(target)
+        currentUser = users[conexao]
+
+        targetConnections = getConnectionsByChannel(currentUser, target) if target.startswith(b'#') else getConnectionsByUser(target)
 
         for targetConnection in targetConnections:
             response = b':%s PRIVMSG %s :%s\r\n' % (users[conexao], target, content)
-            print(targetConnection)
             targetConnection.enviar(response)
+
+        return
+
+    elif messageType == b'JOIN':
+        channel = messageData
+        if not channel.startswith(b'#') or not validar_nome(channel[1:]):
+            response = b':server 403 %s :No such channel\r\n' % channel
+            conexao.enviar(response)
+            return
+
+        currentUser = users[conexao]
+
+        if not channel in channels:
+            channels[channel] = []
+
+        channels[channel].append(currentUser)
+        channels[channel].sort()
+
+        for channelUser in channels[channel]:
+            response = b':%s JOIN :%s\r\n' % (currentUser, channel)
+            channelUserConnection = getConnectionsByUser(channelUser)[0]
+            channelUserConnection.enviar(response)
+
+        defaultResponse = b':server 353 %s = %s :\r\n' % (currentUser, channel)
+        maxNamesLength = 512 - len(defaultResponse)
+
+        membersMessages = [b'']
+
+        for channelUser in channels[channel]:
+            nextValue = (membersMessages[-1] + b' ' + channelUser).strip()
+            if len(nextValue) < maxNamesLength:
+                membersMessages[-1] = nextValue
+            else:
+                membersMessages.append(channelUser)
+
+        for membersMessage in membersMessages:
+            response = b':server 353 %s = %s :%s\r\n' % (currentUser, channel, membersMessage)
+            conexao.enviar(response)
+
+        lastResponse = b':server 366 %s %s :End of /NAMES list\r\n' % (currentUser, channel)
+        conexao.enviar(lastResponse)
+
 
         return
 
@@ -128,8 +175,20 @@ def handleMessage(conexao, messageType, messageData):
 def usingNick(user):
     return user.lower() in [x.lower() for x in list(users.values())]
 
-def getConnectionsByChannel(channel):
-    return []
+def getConnectionsByChannel(currentUser, maybeChannel):
+    connections = []
+
+    channelsListLowerCase = [x.lower() for x in list(channels.keys())]
+    channelIndex = channelsListLowerCase.index(maybeChannel.lower())
+    channel = list(channels.keys())[channelIndex]
+
+    if channel in channels:
+        for user in channels[channel]:
+            if not user == currentUser:
+                userConnection = getConnectionsByUser(user)
+                connections.append(userConnection[0])
+
+    return connections
 
 # it will return an array with 0 or 1 connection
 def getConnectionsByUser(user):
