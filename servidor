@@ -8,6 +8,13 @@ def validar_nome(nome):
 
 def sair(conexao):
     print('> Connection closed')
+
+    if conexao in missingData:
+        del missingData[conexao]
+
+    if conexao in users:
+        del users[conexao]
+
     conexao.fechar()
 
 def dados_recebidos(conexao, dados):
