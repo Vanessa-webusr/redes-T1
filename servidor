@@ -169,6 +169,35 @@ def handleMessage(conexao, messageType, messageData):
 
         return
 
+    elif messageType == b'PART':
+      channel = messageData
+
+      # verificar se o nome do canal é válido
+      if not channel.startswith(b'#') or not validar_nome(channel[1:]):
+            response = b':server 403 %s :No such channel\r\n' % channel
+            conexao.enviar(response)
+            return
+
+      currentUser = users[conexao]
+
+      
+      # mensagem para avisar que um membro saiu do canal
+      for channelUser in channels[channel]:
+          response = b':%s PART :%s\r\n' % (currentUser, channel)
+          channelUserConnection = getConnectionsByUser(channelUser)[0]
+          channelUserConnection.enviar(response)
+
+      # remover membro do canal
+      # print(channels[channel])
+      # print(users)
+      # print(currentUser)
+      channels[channel].remove(currentUser)
+      channels[channel].sort()
+      # print(channels[channel])
+      # print(users)
+      
+      return
+
     else:
         print('? Message type not implemented: "%s"' % messageType)
 
