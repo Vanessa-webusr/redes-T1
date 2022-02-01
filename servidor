@@ -206,13 +206,8 @@ def handleMessage(conexao, messageType, messageData):
           channelUserConnection.enviar(response)
 
       # remover membro do canal
-      # print(channels[channel])
-      # print(users)
-      # print(currentUser)
       channels[channel].remove(currentUser)
       channels[channel].sort()
-      # print(channels[channel])
-      # print(users)
       
       return
 
