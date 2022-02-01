@@ -13,9 +13,22 @@ def sair(conexao):
         del missingData[conexao]
 
     if conexao in users:
-        del users[conexao]
+        currentUser = users[conexao]
 
-    # TODO: remove from channels
+        channelsList = filter(
+            lambda channel: currentUser in channels[channel], list(channels.keys()))
+
+        for channel in channelsList:
+            for user in channels[channel]:
+                if not user == currentUser:
+                    response = b':%s QUIT :Connection closed\r\n' % currentUser
+                    memberConnection = getConnectionsByUser(user)[0]
+                    memberConnection.enviar(response)
+
+            channels[channel].remove(currentUser)
+            channels[channel].sort()
+
+        del users[conexao]
 
     conexao.fechar()
 
