@@ -176,7 +176,7 @@ def handleMessage(conexao, messageType, messageData):
             response = b':server 353 %s = %s :%s\r\n' % (currentUser, channel, membersMessage)
             conexao.enviar(response)
 
-        lastResponse = b':server 366 %s %s :End of /NAMES list\r\n' % (currentUser, channel)
+        lastResponse = b':server 366 %s %s :End of /NAMES list.\r\n' % (currentUser, channel)
         conexao.enviar(lastResponse)
 
 
