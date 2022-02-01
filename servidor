@@ -180,6 +180,11 @@ def handleMessage(conexao, messageType, messageData):
 
       currentUser = users[conexao]
 
+      if not channel in channels:
+          return
+      if not currentUser in channels[channel]:
+          return
+
       
       # mensagem para avisar que um membro saiu do canal
       for channelUser in channels[channel]:
