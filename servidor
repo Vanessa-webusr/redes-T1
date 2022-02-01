@@ -170,7 +170,7 @@ def handleMessage(conexao, messageType, messageData):
         return
 
     elif messageType == b'PART':
-      channel = messageData
+      channel = messageData.split(b' ', 1)[0]
 
       # verificar se o nome do canal é válido
       if not channel.startswith(b'#') or not validar_nome(channel[1:]):
