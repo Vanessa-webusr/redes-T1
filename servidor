@@ -183,7 +183,7 @@ def handleMessage(conexao, messageType, messageData):
       
       # mensagem para avisar que um membro saiu do canal
       for channelUser in channels[channel]:
-          response = b':%s PART :%s\r\n' % (currentUser, channel)
+          response = b':%s PART %s\r\n' % (currentUser, channel)
           channelUserConnection = getConnectionsByUser(channelUser)[0]
           channelUserConnection.enviar(response)
 
